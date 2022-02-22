@@ -1,65 +1,86 @@
 const express = require("express");
-var mongo = require("mongodb");
+let Details = require("./details.model");
+const bodyParser = require("body-parser");
+
 var cors = require("cors");
-const { default: axios } = require("axios");
+
 const app = express();
+
 const port = 4000;
+
+const mongoose = require("mongoose");
+const config = require("./DB.js");
+mongoose.Promise = global.Promise;
+mongoose.connect(config.DB, { useNewUrlParser: true }).then(
+  () => {
+    console.log("Database is connected");
+  },
+  (err) => {
+    console.log("Can not connect to the database" + err);
+  }
+);
 
 app.use(cors());
 
-let detailsInServer = [];
-let selectedKeyValue;
-let selectedRowDetails;
-let selectedIndexValue;
-let isEditing;
-
 app.get("/", (req, res) => {
-  res.send(JSON.stringify(detailsInServer));
+  Details.find((err, detail) => {
+    if (err) {
+      console.log(err);
+    } else {
+      res.json(detail);
+    }
+  });
 });
 
 app.post(`/createMerchant/:details`, (req, res) => {
-  detailsInServer.push(JSON.parse(req.params.details));
-  res.send("Hello Kavin!");
+  let details = new Details(JSON.parse(req.params.details));
+  details.save();
+  res.send("submited sucessfully");
 });
 
-app.post(`/expandMerchant/:key`, (req, res) => {
-  selectedKeyValue = JSON.parse(req.params.key);
-  selectedRowDetails = detailsInServer?.find(
-    (detail) => detail.key === selectedKeyValue
-  );
-  selectedIndexValue = detailsInServer.indexOf(selectedRowDetails);
-
-  res.send("Hello Kavin!");
+app.get("/expandMerchantPageLoad/:_id", (req, res) => {
+  Details.findById(req.params._id, function (err, detail) {
+    res.json(detail);
+  });
 });
 
-app.get("/expandMerchantPageLoad", (req, res) => {
-  res.send(JSON.stringify(selectedRowDetails));
+app.post(`/deleteMerchant/:id`, (req, res) => {
+  Details.findByIdAndRemove({ _id: req.params.id }, function (err, detail) {
+    if (err) res.json(err);
+    else res.json("Successfully removed");
+  });
 });
 
-app.post(`/deleteMerchant`, (req, res) => {
-  detailsInServer.splice(selectedIndexValue, 1);
-
-  res.send("Hello Kavin!");
+app.get("/selectedRowDetails/:_id", (req, res) => {
+  Details.findById(req.params._id, function (err, detail) {
+    res.json(detail);
+  });
 });
 
-app.post(`/editMerchant`, (req, res) => {
-  isEditing = true;
+app.post(`/updateMerchant/:updateDetails/:id`, (req, res) => {
+  let selectedRowDetails = JSON.parse(req.params.updateDetails);
+  Details.findById(req.params.id, function (err, detail) {
+    if (!detail) res.status(404).send("data is not found");
+    else {
+      detail.userName = selectedRowDetails.userName;
+      detail.email = selectedRowDetails.email;
+      detail.phoneNumber = selectedRowDetails.phoneNumber;
+      detail.website = selectedRowDetails.website;
+      detail.contactName = selectedRowDetails.contactName;
+      detail.contactPhone = selectedRowDetails.contactPhone;
+      detail.contactEmail = selectedRowDetails.contactEmail;
+      detail.notes = selectedRowDetails.notes;
+      detail.typeOfBusiness = selectedRowDetails.typeOfBusiness;
+      detail.catageryOfBusiness = selectedRowDetails.catageryOfBusiness;
+      detail.comissionPercentage = selectedRowDetails.comissionPercentage;
+      detail.activeFrom = selectedRowDetails.activeFrom;
+      detail.criticalAccount = selectedRowDetails.criticalAccount;
+      detail.paymentOption = selectedRowDetails.paymentOption;
 
-  res.send("Hello Kavin!");
-});
-
-app.get("/editMerchantPageLoad", (req, res) => {
-  res.send(JSON.stringify(isEditing));
-});
-
-app.get("/selectedRowDetails", (req, res) => {
-  res.send(JSON.stringify(selectedRowDetails));
-});
-
-app.post(`/updateMerchant/:updateDetails`, (req, res) => {
-  detailsInServer[selectedIndexValue]= (JSON.parse(req.params.updateDetails));
-isEditing=false
-  res.send("Hello Kavin!");
+      detail.save();
+      res.send("updated sucessfully");
+    }
+  });
 });
 
 app.listen(port, () => {
